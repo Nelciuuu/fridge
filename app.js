@@ -26,6 +26,16 @@ if (!CFG || !CFG.SUPABASE_URL || CFG.SUPABASE_URL.includes("YOUR-PROJECT")) {
 
 const supabase = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
 
+// Domyślnie włączone — ustaw AI_ENABLED: false w config.js, jeśli w Cloudflare
+// Workerze nie masz jeszcze skonfigurowanego ANTHROPIC_API_KEY.
+const AI_ENABLED = CFG.AI_ENABLED !== false;
+
+function applyFeatureFlags() {
+  if (AI_ENABLED) return;
+  $("btn-cook").classList.add("hidden");
+  $("tab-btn-receipt").classList.add("hidden");
+}
+
 // Domyślne terminy przydatności (dni) wg kategorii z paragonu.
 const CATEGORY_DAYS = {
   "nabiał": 7,
@@ -662,6 +672,8 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch((err) => console.error("SW register failed", err));
   });
 }
+
+applyFeatureFlags();
 
 if (shouldShowOnboarding()) {
   showScreen("screen-onboarding");

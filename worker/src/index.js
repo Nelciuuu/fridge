@@ -83,6 +83,12 @@ async function verifyUser(request, env) {
 }
 
 async function callAnthropic(env, { system, content, schema, maxTokens }) {
+  if (!env.ANTHROPIC_API_KEY) {
+    const err = new Error("Funkcje AI nie są jeszcze skonfigurowane (brak ANTHROPIC_API_KEY).");
+    err.status = 503;
+    throw err;
+  }
+
   const res = await fetch(ANTHROPIC_URL, {
     method: "POST",
     headers: {
@@ -268,7 +274,7 @@ export default {
         return await handleRecipes(request, env);
       }
     } catch (err) {
-      return json({ error: err.message || "Błąd serwera" }, env, 500);
+      return json({ error: err.message || "Błąd serwera" }, env, err.status || 500);
     }
 
     return json({ error: "Not found" }, env, 404);
