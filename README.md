@@ -168,10 +168,10 @@ nie appki.
 
 ## Kolejność budowy (zgodnie z założeniem projektu)
 
-1. ✅ Szkielet PWA (manifest, service worker, ikony) + Supabase (auth, households, RLS, realtime) + lista produktów z ręcznym dodawaniem.
-2. ✅ Odczyt paragonu ze zdjęcia (Cloudflare Worker → Anthropic Vision).
-3. ✅ Web Push (subskrypcja w appce + codzienny cron w Workerze).
-4. ✅ Podpowiedzi kulinarne ("co ugotować").
+1.  Szkielet PWA (manifest, service worker, ikony) + Supabase (auth, households, RLS, realtime) + lista produktów z ręcznym dodawaniem.
+2. Odczyt paragonu ze zdjęcia (Cloudflare Worker → Anthropic Vision).
+3. Web Push (subskrypcja w appce + codzienny cron w Workerze).
+4. Podpowiedzi kulinarne ("co ugotować").
 
 Wszystko jest już zaimplementowane w tym repo — powyższe kroki 1–5 to
 instrukcja wdrożenia na Twoje własne konta.
