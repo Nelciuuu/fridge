@@ -1,0 +1,21 @@
+name = "lodowka-worker"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Uruchamia wysyłkę powiadomień push codziennie o 6:00 UTC (~8:00 latem / 7:00 zimą w Polsce).
+# Dostosuj godzinę wg potrzeb: https://crontab.guru/
+[triggers]
+crons = ["0 6 * * *"]
+
+# Wartości NIEWRAŻLIWE (publiczne). Sekrety (klucze prywatne) ustaw przez:
+#   wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#   wrangler secret put VAPID_PRIVATE_KEY
+[vars]
+SUPABASE_URL = "https://YOUR-PROJECT.supabase.co"
+SUPABASE_ANON_KEY = "YOUR-SUPABASE-ANON-KEY"
+VAPID_PUBLIC_KEY = "YOUR-VAPID-PUBLIC-KEY"
+VAPID_SUBJECT = "mailto:you@example.com"
+ANTHROPIC_MODEL = "claude-sonnet-5"
+ALLOWED_ORIGIN = "https://YOUR-GITHUB-USERNAME.github.io"

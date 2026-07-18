@@ -1,0 +1,17 @@
+{
+  "name": "lodowka-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  },
+  "dependencies": {
+    "@block65/webcrypto-web-push": "^3.0.0"
+  }
+}

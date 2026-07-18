@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Lodówka</title>
+  <meta name="description" content="Wspólna lista zawartości lodówki dla dwojga" />
+
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1e8891" />
+
+  <!-- iOS home screen support -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lodówka" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="icon" href="icons/icon-192.png" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Onboarding: instrukcja "Dodaj do ekranu głównego" na iOS -->
+  <section id="screen-onboarding" class="screen hidden">
+    <div class="card">
+      <h1>🧊 Lodówka</h1>
+      <p>Żeby dostawać powiadomienia o kończących się produktach, dodaj tę appkę do ekranu głównego:</p>
+      <ol class="steps">
+        <li>Stuknij przycisk <strong>Udostępnij</strong> <span class="ios-share-icon" aria-hidden="true">⬆️</span> na dole ekranu w Safari</li>
+        <li>Wybierz <strong>Dodaj do ekranu początkowego</strong></li>
+        <li>Otwórz Lodówkę z ikony na ekranie głównym</li>
+      </ol>
+      <button id="btn-onboarding-continue" class="btn btn-primary">Rozumiem, dalej</button>
+      <button id="btn-onboarding-skip" class="btn btn-link">Otwórz mimo to w przeglądarce</button>
+    </div>
+  </section>
+
+  <!-- Logowanie: magic link -->
+  <section id="screen-auth" class="screen hidden">
+    <div class="card">
+      <h1>🧊 Lodówka</h1>
+      <p>Zaloguj się linkiem wysłanym na e-mail — bez hasła.</p>
+      <form id="form-auth">
+        <input type="email" id="input-email" placeholder="twoj@email.pl" autocomplete="email" required />
+        <button type="submit" class="btn btn-primary">Wyślij link logowania</button>
+      </form>
+      <p id="auth-status" class="hint"></p>
+    </div>
+  </section>
+
+  <!-- Dołączenie / stworzenie gospodarstwa domowego -->
+  <section id="screen-household" class="screen hidden">
+    <div class="card">
+      <h1>Wasza lodówka</h1>
+      <p>Dołącz do lodówki partnera/partnerki kodem zaproszenia, albo załóż nową.</p>
+      <form id="form-join-household">
+        <input type="text" id="input-invite-code" placeholder="Kod zaproszenia (np. a1b2c3)" maxlength="12" />
+        <button type="submit" class="btn btn-primary">Dołącz</button>
+      </form>
+      <p class="hint-divider">albo</p>
+      <button id="btn-create-household" class="btn btn-secondary">Załóż nową lodówkę</button>
+      <p id="household-status" class="hint"></p>
+    </div>
+  </section>
+
+  <!-- Główny ekran aplikacji -->
+  <section id="screen-app" class="screen hidden">
+    <header class="app-header">
+      <h1>🧊 Lodówka</h1>
+      <div class="header-actions">
+        <button id="btn-invite" class="btn-icon" title="Kod zaproszenia dla partnera">🔗</button>
+        <button id="btn-push" class="btn-icon" title="Włącz powiadomienia">🔔</button>
+        <button id="btn-logout" class="btn-icon" title="Wyloguj">⎋</button>
+      </div>
+    </header>
+
+    <main id="product-list-wrap">
+      <ul id="product-list" class="product-list"></ul>
+      <p id="empty-state" class="empty-state hidden">Lodówka jest pusta. Dodaj produkty przyciskiem "+".</p>
+    </main>
+
+    <div class="fab-row">
+      <button id="btn-cook" class="fab fab-secondary" title="Co ugotować?">🍳</button>
+      <button id="btn-add" class="fab fab-primary" title="Dodaj produkt">+</button>
+    </div>
+  </section>
+
+  <!-- Modal: dodaj produkt / zeskanuj paragon -->
+  <div id="modal-add" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Dodaj</h2>
+        <button class="btn-icon modal-close" data-close="modal-add">✕</button>
+      </div>
+      <div class="modal-tabs">
+        <button class="tab-btn active" data-tab="tab-manual">Ręcznie</button>
+        <button class="tab-btn" data-tab="tab-receipt">Zdjęcie paragonu</button>
+      </div>
+
+      <div id="tab-manual" class="tab-panel active">
+        <form id="form-add-product">
+          <label>Nazwa <input type="text" id="input-name" required /></label>
+          <label>Kategoria
+            <select id="input-category">
+              <option value="nabiał">Nabiał</option>
+              <option value="mięso">Mięso</option>
+              <option value="warzywa">Warzywa</option>
+              <option value="owoce">Owoce</option>
+              <option value="pieczywo">Pieczywo</option>
+              <option value="mrożonki">Mrożonki</option>
+              <option value="inne" selected>Inne</option>
+            </select>
+          </label>
+          <label>Ilość <input type="text" id="input-quantity" placeholder="np. 1 szt" /></label>
+          <label>Data zakupu <input type="date" id="input-purchase-date" required /></label>
+          <label>Termin ważności <input type="date" id="input-expiry-date" required /></label>
+          <button type="submit" class="btn btn-primary">Dodaj do lodówki</button>
+        </form>
+      </div>
+
+      <div id="tab-receipt" class="tab-panel">
+        <p class="hint">Zrób zdjęcie paragonu albo wybierz z galerii — AI odczyta produkty.</p>
+        <input type="file" id="input-receipt-file" accept="image/*" capture="environment" />
+        <div id="receipt-status" class="hint"></div>
+        <div id="receipt-review" class="receipt-review hidden">
+          <p class="hint">Sprawdź i popraw przed dodaniem:</p>
+          <ul id="receipt-review-list" class="receipt-review-list"></ul>
+          <button id="btn-receipt-confirm" class="btn btn-primary">Dodaj wszystkie do lodówki</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: co ugotować -->
+  <div id="modal-cook" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Co ugotować?</h2>
+        <button class="btn-icon modal-close" data-close="modal-cook">✕</button>
+      </div>
+      <div id="cook-content">
+        <p class="hint">Przepisy na bazie produktów kończących się w ciągu 3 dni.</p>
+        <button id="btn-cook-generate" class="btn btn-primary">Zaproponuj przepisy</button>
+        <div id="cook-status" class="hint"></div>
+        <div id="cook-recipes" class="recipes"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: kod zaproszenia -->
+  <div id="modal-invite" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Zaproś partnera</h2>
+        <button class="btn-icon modal-close" data-close="modal-invite">✕</button>
+      </div>
+      <p class="hint">Przekaż ten kod partnerowi/partnerce — wpisze go przy logowaniu, żeby dołączyć do tej samej lodówki.</p>
+      <p id="invite-code-display" class="invite-code"></p>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

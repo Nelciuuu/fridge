@@ -1,0 +1,49 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # config.js jest w .gitignore (patrz config.example.js) — generujemy go tutaj
+      # z wartości ustawionych w Settings → Secrets and variables → Actions → Variables.
+      # Te wartości NIE są tajne (klucz anon Supabase i klucz publiczny VAPID są bezpieczne
+      # w kliencie — dostęp do danych ogranicza Supabase RLS), ale trzymamy je poza repo,
+      # żeby nie hardkodować adresów projektu w historii gita.
+      - name: Generate config.js
+        run: |
+          cat > config.js << EOF
+          window.APP_CONFIG = {
+            SUPABASE_URL: "${{ vars.SUPABASE_URL }}",
+            SUPABASE_ANON_KEY: "${{ vars.SUPABASE_ANON_KEY }}",
+            WORKER_URL: "${{ vars.WORKER_URL }}",
+            VAPID_PUBLIC_KEY: "${{ vars.VAPID_PUBLIC_KEY }}",
+          };
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
