@@ -33,8 +33,13 @@ worker/                         – Cloudflare Worker (proxy do Anthropic + wysy
 4. Włącz magic-link auth: **Authentication → Providers → Email** — upewnij się, że "Confirm email" oraz "Email OTP" są włączone (domyślnie tak). Nie trzeba włączać haseł.
 5. **Authentication → URL Configuration** → ustaw **Site URL** na docelowy adres GitHub Pages (np. `https://twoj-login.github.io/fridge/`) i dodaj go też do **Redirect URLs** — inaczej magic link nie wróci do appki.
 6. Zapisz też **service_role key** (Project Settings → API → `service_role`, **sekretny**, tylko dla Workera) — potrzebny w kroku 3.
+7. **Zablokuj rejestrację obcym osobom** — appka loguje się z `shouldCreateUser: false`, więc magic link dostają wyłącznie konta, które istnieją już w Supabase. Załóż ręcznie dokładnie dwa konta (Wasze e-maile):
+   **Authentication → Users → Add user** → wpisz e-mail, ustaw dowolne (nieużywane) hasło, zaznacz **Auto Confirm User** → **Create user**. Powtórz dla drugiej osoby.
+   Każdy inny e-mail przy próbie logowania dostanie komunikat "Ten adres e-mail nie ma dostępu do tej lodówki" — link nawet nie zostanie wysłany. Wasze adresy e-mail nigdzie nie trafiają do kodu/repo — żyją tylko w panelu Supabase.
 
-Oboje z pary logujecie się e-mailem przez magic link. Osoba, która loguje się
+Oboje z pary logujecie się e-mailem przez magic link (kliknięcie linku, bez
+hasła — hasło ustawione w kroku 7 nigdy nie jest używane, istnieje tylko,
+bo Supabase wymaga go przy ręcznym tworzeniu konta). Osoba, która loguje się
 pierwsza, zakłada nową "lodówkę" (households) w appce i wysyła drugiej osobie
 kod zaproszenia (widoczny pod ikoną 🔗 w appce) — druga osoba wpisuje go przy
 pierwszym logowaniu.

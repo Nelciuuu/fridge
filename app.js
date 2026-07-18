@@ -124,11 +124,23 @@ $("form-auth").addEventListener("submit", async (e) => {
   $("auth-status").textContent = "Wysyłanie linku...";
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.origin + window.location.pathname },
+    options: {
+      // shouldCreateUser: false — logowanie działa TYLKO dla kont, które
+      // zostały wcześniej ręcznie założone w Supabase Dashboard (patrz
+      // README, sekcja 1). Każdy inny e-mail dostaje odmowę już tutaj —
+      // nikt obcy nie może się zarejestrować.
+      shouldCreateUser: false,
+      emailRedirectTo: window.location.origin + window.location.pathname,
+    },
   });
-  $("auth-status").textContent = error
-    ? `Błąd: ${error.message}`
-    : "Link wysłany! Sprawdź skrzynkę e-mail.";
+  if (error) {
+    const denied = /not allowed|not found|signup/i.test(error.message);
+    $("auth-status").textContent = denied
+      ? "Ten adres e-mail nie ma dostępu do tej lodówki."
+      : `Błąd: ${error.message}`;
+    return;
+  }
+  $("auth-status").textContent = "Link wysłany! Sprawdź skrzynkę e-mail.";
 });
 
 $("btn-logout").addEventListener("click", async () => {
