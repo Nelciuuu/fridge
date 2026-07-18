@@ -73,20 +73,24 @@ Edytuj `wrangler.toml` — uzupełnij `[vars]`:
 - `SUPABASE_URL` — z kroku 1
 - `SUPABASE_ANON_KEY` — z kroku 1
 - `VAPID_PUBLIC_KEY` — z kroku 2
-- `VAPID_SUBJECT` — `mailto:twoj@email.pl`
 - `ALLOWED_ORIGIN` — adres GitHub Pages, np. `https://twoj-login.github.io`
 
-Ustaw sekrety (**nigdy** nie trafiają do repo ani do `wrangler.toml`):
+Ustaw sekrety (**nigdy** nie trafiają do repo ani do `wrangler.toml`) — `VAPID_SUBJECT`
+jest tu też, bo to Twój e-mail, a `wrangler.toml` ląduje w publicznym repo:
 
 ```bash
 npx wrangler secret put ANTHROPIC_API_KEY
-# wklej swój klucz z https://console.anthropic.com/settings/keys
+# wklej swój klucz z https://console.anthropic.com/settings/keys (pomiń, jeśli
+# na razie rezygnujesz z funkcji AI — dopiszesz go później)
 
 npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 # wklej "service_role" key z kroku 1.6
 
 npx wrangler secret put VAPID_PRIVATE_KEY
 # wklej Private Key z kroku 2
+
+npx wrangler secret put VAPID_SUBJECT
+# wpisz: mailto:twoj@email.pl
 ```
 
 Deploy:
