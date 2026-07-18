@@ -1,6 +1,29 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+function showBootError(message) {
+  document.querySelectorAll(".screen, .modal").forEach((el) => el.classList.add("hidden"));
+  const el = document.getElementById("boot-error");
+  el.textContent = message;
+  el.classList.remove("hidden");
+}
+
+if (location.protocol === "file:") {
+  showBootError(
+    "Ta appka nie działa otwarta bezpośrednio z dysku (file://) — moduły JS wymagają serwera HTTP. " +
+      "Uruchom lokalnie np. `npx serve .` albo `python -m http.server 8080` i otwórz http://localhost:..."
+  );
+  throw new Error("Uruchomiono przez file:// — wymagany serwer HTTP.");
+}
+
 const CFG = window.APP_CONFIG;
+if (!CFG || !CFG.SUPABASE_URL || CFG.SUPABASE_URL.includes("YOUR-PROJECT")) {
+  showBootError(
+    "Brak konfiguracji: skopiuj config.example.js do config.js i uzupełnij danymi swojego projektu Supabase " +
+      "(patrz README.md, sekcja 4 „Lokalne uruchomienie frontendu”)."
+  );
+  throw new Error("Brak config.js / niepełny window.APP_CONFIG.");
+}
+
 const supabase = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
 
 // Domyślne terminy przydatności (dni) wg kategorii z paragonu.

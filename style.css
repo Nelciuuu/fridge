@@ -317,3 +317,20 @@ input, select {
   text-align: center;
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ---------- Boot error (missing config.js / file://) ---------- */
+.boot-error {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  text-align: center;
+  white-space: pre-wrap;
+}
