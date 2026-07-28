@@ -30,10 +30,33 @@ const RECIPE_FORMAT =
 const WEEK_PLAN_FORMAT =
   '{"week_plan": [{"day": "...", "title": "...", "uses_products": ["...", "..."], "instructions": "..."}], "shopping_suggestions": ["...", "..."]}';
 
+// Layered fallback: try the raw text as-is, then a fenced ```json block
+// anywhere in it, then the substring between the first "{" and last "}" —
+// covers the model adding a stray preamble/sentence despite instructions.
 function extractJson(text) {
   const trimmed = text.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return JSON.parse(fenced ? fenced[1] : trimmed);
+  try {
+    return JSON.parse(trimmed);
+  } catch (e) {
+    // fall through
+  }
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced) {
+    try {
+      return JSON.parse(fenced[1]);
+    } catch (e) {
+      // fall through
+    }
+  }
+
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    return JSON.parse(trimmed.slice(start, end + 1));
+  }
+
+  throw new Error("Nie znaleziono obiektu JSON w odpowiedzi modelu");
 }
 
 function preferencesNote(preferences) {
