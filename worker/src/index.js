@@ -134,7 +134,8 @@ async function callAnthropic(env, { system, content, schema, maxTokens }) {
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Anthropic API error ${res.status}: ${errText}`);
+    console.error("Anthropic API error", res.status, JSON.stringify([...res.headers]), errText);
+    throw new Error(`Anthropic API error ${res.status}: ${errText || "(pusta odpowiedź, patrz logi Workera)"}`);
   }
 
   const data = await res.json();
