@@ -7,81 +7,34 @@ const ANTHROPIC_VERSION = "2023-06-01";
 // when pasting into `wrangler secret put`'s terminal prompt.
 const clean = (v) => (typeof v === "string" ? v.trim() : v);
 
-const RECEIPT_SCHEMA = {
-  type: "object",
-  properties: {
-    products: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          name: { type: "string" },
-          quantity: { type: "string" },
-          category: {
-            type: "string",
-            enum: ["nabiał", "mięso", "warzywa", "owoce", "pieczywo", "mrożonki", "inne"],
-          },
-        },
-        required: ["name", "category"],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ["products"],
-  additionalProperties: false,
-};
+// Structured outputs (output_config.format) triggered a mysterious empty
+// 400 from Anthropic's API when called from this Worker — so instead we ask
+// for JSON directly in the prompt and parse the model's text response. More
+// portable and just as reliable in practice.
+const JSON_ONLY_INSTRUCTION =
+  "\n\nOdpowiedz WYŁĄCZNIE surowym obiektem JSON w dokładnie takim kształcie jak podano — bez bloków kodu markdown (```), bez żadnego tekstu przed ani po JSON-ie.";
 
-const RECEIPT_PROMPT = `Masz zdjęcie paragonu ze sklepu spożywczego. Wypisz wszystkie zakupione produkty spożywcze
+const RECEIPT_PROMPT =
+  `Masz zdjęcie paragonu ze sklepu spożywczego. Wypisz wszystkie zakupione produkty spożywcze
 (pomiń pozycje niebędące jedzeniem, np. torby, doładowania, opłaty). Dla każdego produktu podaj:
 - name: nazwa produktu po polsku, krótka i czytelna (np. "Mleko 3.2%" zamiast pełnej nazwy z paragonu)
-- quantity: ilość/waga jeśli widoczna na paragonie (np. "1 szt", "0.5 kg"), inaczej pomiń
-- category: jedna z: nabiał, mięso, warzywa, owoce, pieczywo, mrożonki, inne
+- quantity: ilość/waga jeśli widoczna na paragonie (np. "1 szt", "0.5 kg"), inaczej pomiń pole
+- category: dokładnie jedna z: nabiał, mięso, warzywa, owoce, pieczywo, mrożonki, inne
 
-Zwróć wyłącznie dane zgodne ze schematem.`;
+Format odpowiedzi:
+{"products": [{"name": "...", "quantity": "...", "category": "..."}]}` + JSON_ONLY_INSTRUCTION;
 
-const RECIPE_SCHEMA = {
-  type: "object",
-  properties: {
-    recipes: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          title: { type: "string" },
-          uses_products: { type: "array", items: { type: "string" } },
-          instructions: { type: "string" },
-        },
-        required: ["title", "uses_products", "instructions"],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ["recipes"],
-  additionalProperties: false,
-};
+const RECIPE_FORMAT =
+  '{"recipes": [{"title": "...", "uses_products": ["...", "..."], "instructions": "..."}]}';
 
-const WEEK_PLAN_SCHEMA = {
-  type: "object",
-  properties: {
-    week_plan: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          day: { type: "string" },
-          title: { type: "string" },
-          uses_products: { type: "array", items: { type: "string" } },
-          instructions: { type: "string" },
-        },
-        required: ["day", "title", "uses_products", "instructions"],
-        additionalProperties: false,
-      },
-    },
-    shopping_suggestions: { type: "array", items: { type: "string" } },
-  },
-  required: ["week_plan", "shopping_suggestions"],
-  additionalProperties: false,
-};
+const WEEK_PLAN_FORMAT =
+  '{"week_plan": [{"day": "...", "title": "...", "uses_products": ["...", "..."], "instructions": "..."}], "shopping_suggestions": ["...", "..."]}';
+
+function extractJson(text) {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  return JSON.parse(fenced ? fenced[1] : trimmed);
+}
 
 function corsHeaders(env) {
   return {
@@ -109,7 +62,7 @@ async function verifyUser(request, env) {
   return res.json();
 }
 
-async function callAnthropic(env, { system, content, schema, maxTokens }) {
+async function callAnthropic(env, { system, content, maxTokens }) {
   if (!env.ANTHROPIC_API_KEY) {
     const err = new Error("Funkcje AI nie są jeszcze skonfigurowane (brak ANTHROPIC_API_KEY).");
     err.status = 503;
@@ -127,7 +80,6 @@ async function callAnthropic(env, { system, content, schema, maxTokens }) {
       model: env.ANTHROPIC_MODEL || "claude-sonnet-5",
       max_tokens: maxTokens,
       system,
-      output_config: { format: { type: "json_schema", schema } },
       messages: [{ role: "user", content }],
     }),
   });
@@ -143,7 +95,12 @@ async function callAnthropic(env, { system, content, schema, maxTokens }) {
     throw new Error("Model odmówił przetworzenia żądania");
   }
   const textBlock = data.content.find((b) => b.type === "text");
-  return JSON.parse(textBlock.text);
+  try {
+    return extractJson(textBlock.text);
+  } catch (e) {
+    console.error("Failed to parse model JSON output", textBlock.text);
+    throw new Error("Model zwrócił odpowiedź w nieoczekiwanym formacie. Spróbuj ponownie.");
+  }
 }
 
 async function handleReceipt(request, env) {
@@ -157,7 +114,6 @@ async function handleReceipt(request, env) {
 
   const result = await callAnthropic(env, {
     maxTokens: 2048,
-    schema: RECEIPT_SCHEMA,
     content: [
       { type: "image", source: { type: "base64", media_type: body.mime, data: body.image } },
       { type: "text", text: RECEIPT_PROMPT },
@@ -183,11 +139,12 @@ async function handleRecipes(request, env) {
 
   const result = await callAnthropic(env, {
     maxTokens: 2000,
-    schema: RECIPE_SCHEMA,
     content: [
       {
         type: "text",
-        text: `Poniższe produkty w lodówce kończą się w ciągu najbliższych dni:\n${productList}\n\nZaproponuj 2-3 przepisy, które wykorzystują jak najwięcej z tych produktów. Dla każdego przepisu podaj tytuł, listę wykorzystanych produktów z powyższej listy (uses_products) oraz krótki, konkretny przepis krok po kroku (instructions) po polsku.`,
+        text:
+          `Poniższe produkty w lodówce kończą się w ciągu najbliższych dni:\n${productList}\n\nZaproponuj 2-3 przepisy, które wykorzystują jak najwięcej z tych produktów. Dla każdego przepisu podaj tytuł, listę wykorzystanych produktów z powyższej listy (uses_products) oraz krótki, konkretny przepis krok po kroku (instructions) po polsku.\n\nFormat odpowiedzi:\n${RECIPE_FORMAT}` +
+          JSON_ONLY_INSTRUCTION,
       },
     ],
   });
@@ -214,11 +171,12 @@ async function handleWeekPlan(request, env) {
 
   const result = await callAnthropic(env, {
     maxTokens: 4000,
-    schema: WEEK_PLAN_SCHEMA,
     content: [
       {
         type: "text",
-        text: `Oto wszystkie produkty aktualnie w lodówce:\n${productList}\n\nUłóż plan obiadów na 7 dni (poniedziałek-niedziela), maksymalnie wykorzystując te produkty. Produkty oznaczone [KOŃCZY SIĘ WKRÓTCE] potraktuj priorytetowo — zaplanuj dania z ich użyciem na najbliższe dni tygodnia. Możesz zakładać dostępność podstawowych składników spożywczych (sól, przyprawy, olej, mąka, ryż, makaron) nawet jeśli nie są na liście. Dla każdego dnia podaj: dzień tygodnia (day), tytuł dania (title), użyte produkty z listy (uses_products), krótki konkretny przepis krok po kroku (instructions) po polsku. Jeśli produktów z lodówki nie starczy na cały tydzień, w polu shopping_suggestions podaj krótką listę (może być pusta) dodatkowych podstawowych składników wartych dokupienia — inaczej zwróć pustą listę.`,
+        text:
+          `Oto wszystkie produkty aktualnie w lodówce:\n${productList}\n\nUłóż plan obiadów na 7 dni (poniedziałek-niedziela), maksymalnie wykorzystując te produkty. Produkty oznaczone [KOŃCZY SIĘ WKRÓTCE] potraktuj priorytetowo — zaplanuj dania z ich użyciem na najbliższe dni tygodnia. Możesz zakładać dostępność podstawowych składników spożywczych (sól, przyprawy, olej, mąka, ryż, makaron) nawet jeśli nie są na liście. Dla każdego dnia podaj: dzień tygodnia (day), tytuł dania (title), użyte produkty z listy (uses_products), krótki konkretny przepis krok po kroku (instructions) po polsku. Jeśli produktów z lodówki nie starczy na cały tydzień, w polu shopping_suggestions podaj krótką listę (może być pusta) dodatkowych podstawowych składników wartych dokupienia — inaczej zwróć pustą listę.\n\nFormat odpowiedzi:\n${WEEK_PLAN_FORMAT}` +
+          JSON_ONLY_INSTRUCTION,
       },
     ],
   });
