@@ -56,6 +56,29 @@ const RECIPE_SCHEMA = {
   additionalProperties: false,
 };
 
+const WEEK_PLAN_SCHEMA = {
+  type: "object",
+  properties: {
+    week_plan: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          day: { type: "string" },
+          title: { type: "string" },
+          uses_products: { type: "array", items: { type: "string" } },
+          instructions: { type: "string" },
+        },
+        required: ["day", "title", "uses_products", "instructions"],
+        additionalProperties: false,
+      },
+    },
+    shopping_suggestions: { type: "array", items: { type: "string" } },
+  },
+  required: ["week_plan", "shopping_suggestions"],
+  additionalProperties: false,
+};
+
 function corsHeaders(env) {
   return {
     "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
@@ -160,6 +183,37 @@ async function handleRecipes(request, env) {
       {
         type: "text",
         text: `Poniższe produkty w lodówce kończą się w ciągu najbliższych dni:\n${productList}\n\nZaproponuj 2-3 przepisy, które wykorzystują jak najwięcej z tych produktów. Dla każdego przepisu podaj tytuł, listę wykorzystanych produktów z powyższej listy (uses_products) oraz krótki, konkretny przepis krok po kroku (instructions) po polsku.`,
+      },
+    ],
+  });
+
+  return json(result, env);
+}
+
+async function handleWeekPlan(request, env) {
+  const user = await verifyUser(request, env);
+  if (!user) return json({ error: "Brak autoryzacji" }, env, 401);
+
+  const body = await request.json();
+  const products = Array.isArray(body.products) ? body.products : [];
+  if (products.length === 0) {
+    return json({ error: "Wymagana niepusta lista produktów" }, env, 400);
+  }
+
+  const productList = products
+    .map((p) => {
+      const soon = p.expiring_soon ? " [KOŃCZY SIĘ WKRÓTCE]" : "";
+      return `- ${p.name}${p.quantity ? ` (${p.quantity})` : ""}, termin: ${p.expiry_date}${soon}`;
+    })
+    .join("\n");
+
+  const result = await callAnthropic(env, {
+    maxTokens: 4000,
+    schema: WEEK_PLAN_SCHEMA,
+    content: [
+      {
+        type: "text",
+        text: `Oto wszystkie produkty aktualnie w lodówce:\n${productList}\n\nUłóż plan obiadów na 7 dni (poniedziałek-niedziela), maksymalnie wykorzystując te produkty. Produkty oznaczone [KOŃCZY SIĘ WKRÓTCE] potraktuj priorytetowo — zaplanuj dania z ich użyciem na najbliższe dni tygodnia. Możesz zakładać dostępność podstawowych składników spożywczych (sól, przyprawy, olej, mąka, ryż, makaron) nawet jeśli nie są na liście. Dla każdego dnia podaj: dzień tygodnia (day), tytuł dania (title), użyte produkty z listy (uses_products), krótki konkretny przepis krok po kroku (instructions) po polsku. Jeśli produktów z lodówki nie starczy na cały tydzień, w polu shopping_suggestions podaj krótką listę (może być pusta) dodatkowych podstawowych składników wartych dokupienia — inaczej zwróć pustą listę.`,
       },
     ],
   });
@@ -272,6 +326,9 @@ export default {
       }
       if (request.method === "POST" && url.pathname === "/recipes") {
         return await handleRecipes(request, env);
+      }
+      if (request.method === "POST" && url.pathname === "/week-plan") {
+        return await handleWeekPlan(request, env);
       }
     } catch (err) {
       return json({ error: err.message || "Błąd serwera" }, env, err.status || 500);

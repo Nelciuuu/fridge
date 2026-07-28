@@ -1,4 +1,5 @@
 config.js
+preview-local.html
 node_modules/
 .wrangler/
 worker/.dev.vars

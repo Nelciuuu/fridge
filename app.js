@@ -564,6 +564,28 @@ $("btn-cook").addEventListener("click", () => {
   openModal("modal-cook");
 });
 
+function renderRecipeCard(wrap, { day, title, uses_products, instructions }) {
+  const card = document.createElement("div");
+  card.className = "recipe-card";
+  if (day) {
+    const dayLabel = document.createElement("div");
+    dayLabel.className = "recipe-day";
+    dayLabel.textContent = day;
+    card.appendChild(dayLabel);
+  }
+  const h3 = document.createElement("h3");
+  h3.textContent = title;
+  const uses = document.createElement("div");
+  uses.className = "recipe-uses";
+  uses.textContent = "Wykorzystuje: " + (uses_products || []).join(", ");
+  const p = document.createElement("p");
+  p.textContent = instructions;
+  card.appendChild(h3);
+  card.appendChild(uses);
+  card.appendChild(p);
+  wrap.appendChild(card);
+}
+
 $("btn-cook-generate").addEventListener("click", async () => {
   const soon = state.products.filter((p) => daysUntil(p.expiry_date) <= 3);
   if (soon.length === 0) {
@@ -593,21 +615,53 @@ $("btn-cook-generate").addEventListener("click", async () => {
 
     $("cook-status").textContent = "";
     const wrap = $("cook-recipes");
-    (data.recipes || []).forEach((r) => {
-      const card = document.createElement("div");
-      card.className = "recipe-card";
-      const h3 = document.createElement("h3");
-      h3.textContent = r.title;
-      const uses = document.createElement("div");
-      uses.className = "recipe-uses";
-      uses.textContent = "Wykorzystuje: " + (r.uses_products || []).join(", ");
-      const p = document.createElement("p");
-      p.textContent = r.instructions;
-      card.appendChild(h3);
-      card.appendChild(uses);
-      card.appendChild(p);
-      wrap.appendChild(card);
+    (data.recipes || []).forEach((r) => renderRecipeCard(wrap, r));
+  } catch (err) {
+    $("cook-status").textContent = `Błąd: ${err.message}`;
+  }
+});
+
+$("btn-cook-week").addEventListener("click", async () => {
+  if (state.products.length === 0) {
+    $("cook-status").textContent = "Lodówka jest pusta — brak produktów do zaplanowania.";
+    return;
+  }
+
+  $("cook-status").textContent = "Układam plan na tydzień...";
+  $("cook-recipes").innerHTML = "";
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const res = await fetch(`${CFG.WORKER_URL}/week-plan`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        products: state.products.map((p) => ({
+          name: p.name,
+          quantity: p.quantity,
+          expiry_date: p.expiry_date,
+          expiring_soon: daysUntil(p.expiry_date) <= 3,
+        })),
+      }),
     });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Błąd generowania planu");
+
+    $("cook-status").textContent = "";
+    const wrap = $("cook-recipes");
+    (data.week_plan || []).forEach((r) => renderRecipeCard(wrap, r));
+
+    if ((data.shopping_suggestions || []).length > 0) {
+      const note = document.createElement("div");
+      note.className = "recipe-shopping-note";
+      note.textContent = "Warto dokupić: " + data.shopping_suggestions.join(", ");
+      wrap.appendChild(note);
+    }
   } catch (err) {
     $("cook-status").textContent = `Błąd: ${err.message}`;
   }
