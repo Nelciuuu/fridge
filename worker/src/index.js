@@ -3,6 +3,10 @@ import { buildPushPayload } from "@block65/webcrypto-web-push";
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 
+// Defends against stray whitespace/newlines that can sneak into a secret
+// when pasting into `wrangler secret put`'s terminal prompt.
+const clean = (v) => (typeof v === "string" ? v.trim() : v);
+
 const RECEIPT_SCHEMA = {
   type: "object",
   properties: {
@@ -98,8 +102,8 @@ function json(data, env, status = 200) {
 async function verifyUser(request, env) {
   const auth = request.headers.get("Authorization");
   if (!auth) return null;
-  const res = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
-    headers: { Authorization: auth, apikey: env.SUPABASE_ANON_KEY },
+  const res = await fetch(`${clean(env.SUPABASE_URL)}/auth/v1/user`, {
+    headers: { Authorization: auth, apikey: clean(env.SUPABASE_ANON_KEY) },
   });
   if (!res.ok) return null;
   return res.json();
@@ -116,7 +120,7 @@ async function callAnthropic(env, { system, content, schema, maxTokens }) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-api-key": env.ANTHROPIC_API_KEY,
+      "x-api-key": clean(env.ANTHROPIC_API_KEY),
       "anthropic-version": ANTHROPIC_VERSION,
     },
     body: JSON.stringify({
@@ -226,10 +230,10 @@ async function handleWeekPlan(request, env) {
 // ---------------------------------------------------------------------------
 
 async function supabaseAdminFetch(env, path) {
-  const res = await fetch(`${env.SUPABASE_URL}/rest/v1${path}`, {
+  const res = await fetch(`${clean(env.SUPABASE_URL)}/rest/v1${path}`, {
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: clean(env.SUPABASE_SERVICE_ROLE_KEY),
+      Authorization: `Bearer ${clean(env.SUPABASE_SERVICE_ROLE_KEY)}`,
     },
   });
   if (!res.ok) throw new Error(`Supabase REST error ${res.status}: ${await res.text()}`);
@@ -237,11 +241,11 @@ async function supabaseAdminFetch(env, path) {
 }
 
 async function supabaseAdminDelete(env, path) {
-  await fetch(`${env.SUPABASE_URL}/rest/v1${path}`, {
+  await fetch(`${clean(env.SUPABASE_URL)}/rest/v1${path}`, {
     method: "DELETE",
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: clean(env.SUPABASE_SERVICE_ROLE_KEY),
+      Authorization: `Bearer ${clean(env.SUPABASE_SERVICE_ROLE_KEY)}`,
     },
   });
 }
@@ -293,9 +297,9 @@ async function sendDailyExpiryPush(env) {
           },
           { endpoint: sub.endpoint, keys: sub.keys },
           {
-            subject: env.VAPID_SUBJECT,
-            publicKey: env.VAPID_PUBLIC_KEY,
-            privateKey: env.VAPID_PRIVATE_KEY,
+            subject: clean(env.VAPID_SUBJECT),
+            publicKey: clean(env.VAPID_PUBLIC_KEY),
+            privateKey: clean(env.VAPID_PRIVATE_KEY),
           }
         );
         const pushRes = await fetch(sub.endpoint, payload);
