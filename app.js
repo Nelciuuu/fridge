@@ -16,6 +16,13 @@ if (location.protocol === "file:") {
 }
 
 const CFG = window.APP_CONFIG;
+// Defends against stray whitespace/newlines pasted into a config value (e.g.
+// GitHub repo Variables) — a trailing "\n" in a URL silently breaks fetch().
+if (CFG) {
+  for (const key of ["SUPABASE_URL", "SUPABASE_ANON_KEY", "WORKER_URL", "VAPID_PUBLIC_KEY"]) {
+    if (typeof CFG[key] === "string") CFG[key] = CFG[key].trim();
+  }
+}
 if (!CFG || !CFG.SUPABASE_URL || CFG.SUPABASE_URL.includes("YOUR-PROJECT")) {
   showBootError(
     "Brak konfiguracji: skopiuj config.example.js do config.js i uzupełnij danymi swojego projektu Supabase " +

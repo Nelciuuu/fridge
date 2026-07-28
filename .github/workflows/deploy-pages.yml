@@ -29,14 +29,24 @@ jobs:
       # w kliencie — dostęp do danych ogranicza Supabase RLS), ale trzymamy je poza repo,
       # żeby nie hardkodować adresów projektu w historii gita.
       - name: Generate config.js
+        # Passed via env: (not inlined into the script) so a stray trailing
+        # newline/space pasted into a repo Variable — or shell metacharacters —
+        # can't break the URL or inject into the generated script.
+        env:
+          CFG_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          CFG_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          CFG_WORKER_URL: ${{ vars.WORKER_URL }}
+          CFG_VAPID_PUBLIC_KEY: ${{ vars.VAPID_PUBLIC_KEY }}
+          CFG_AI_ENABLED: ${{ vars.AI_ENABLED || 'false' }}
         run: |
+          trim() { printf '%s' "$1" | tr -d '\n\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
           cat > config.js << EOF
           window.APP_CONFIG = {
-            SUPABASE_URL: "${{ vars.SUPABASE_URL }}",
-            SUPABASE_ANON_KEY: "${{ vars.SUPABASE_ANON_KEY }}",
-            WORKER_URL: "${{ vars.WORKER_URL }}",
-            VAPID_PUBLIC_KEY: "${{ vars.VAPID_PUBLIC_KEY }}",
-            AI_ENABLED: ${{ vars.AI_ENABLED || 'false' }},
+            SUPABASE_URL: "$(trim "$CFG_SUPABASE_URL")",
+            SUPABASE_ANON_KEY: "$(trim "$CFG_SUPABASE_ANON_KEY")",
+            WORKER_URL: "$(trim "$CFG_WORKER_URL")",
+            VAPID_PUBLIC_KEY: "$(trim "$CFG_VAPID_PUBLIC_KEY")",
+            AI_ENABLED: $(trim "$CFG_AI_ENABLED"),
           };
           EOF
 
