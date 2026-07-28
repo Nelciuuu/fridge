@@ -456,12 +456,32 @@ $("form-add-product").addEventListener("submit", async (e) => {
 // Paragon — wysyłka zdjęcia do Workera, przegląd, potwierdzenie
 // ---------------------------------------------------------------------------
 
-function fileToBase64(file) {
+// Redraws any browser-renderable image (including iPhone HEIC/HEIF photos,
+// which Anthropic's API rejects) onto a canvas and re-exports as JPEG. Also
+// downscales oversized photos to keep upload size and AI cost reasonable.
+function fileToJpegBase64(file, maxDim = 1600, quality = 0.85) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(",")[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        const scale = maxDim / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", quality).split(",")[1]);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Nie udało się wczytać zdjęcia. Spróbuj innego pliku (JPG/PNG)."));
+    };
+    img.src = url;
   });
 }
 
@@ -473,7 +493,7 @@ $("input-receipt-file").addEventListener("change", async () => {
   $("receipt-review").classList.add("hidden");
 
   try {
-    const base64 = await fileToBase64(file);
+    const base64 = await fileToJpegBase64(file);
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -484,7 +504,7 @@ $("input-receipt-file").addEventListener("change", async () => {
         "content-type": "application/json",
         authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ image: base64, mime: file.type || "image/jpeg" }),
+      body: JSON.stringify({ image: base64, mime: "image/jpeg" }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Błąd odczytu paragonu");
