@@ -9,8 +9,12 @@ create table if not exists households (
   id uuid primary key default gen_random_uuid(),
   name text not null default 'Nasza lodówka',
   invite_code text unique not null default substr(md5(random()::text), 1, 6),
+  -- Wolny tekst: co domownicy lubią/czego nie lubią jeść, diety, alergie itp.
+  -- Uwzględniane przy podpowiedziach przepisów i planu tygodnia.
+  food_preferences text,
   created_at timestamptz not null default now()
 );
+alter table households add column if not exists food_preferences text;
 
 -- profiles: łączy auth.users z household_id (nie było w oryginalnej liście
 -- tabel, ale jest niezbędne, żeby wiedzieć "kto należy do jakiej lodówki").
@@ -77,6 +81,10 @@ create policy "households: select own" on households
   );
 create policy "households: insert any authenticated" on households
   for insert with check (auth.role() = 'authenticated');
+create policy "households: update own" on households
+  for update using (
+    id in (select household_id from profiles where id = auth.uid())
+  );
 
 -- products: dostęp tylko w ramach własnego household_id
 create policy "products: select own household" on products

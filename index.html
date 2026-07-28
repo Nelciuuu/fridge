@@ -71,6 +71,7 @@
       <h1>🧊 Lodówka</h1>
       <div class="header-actions">
         <button id="btn-invite" class="btn-icon" title="Kod zaproszenia dla partnera">🔗</button>
+        <button id="btn-preferences" class="btn-icon" title="Preferencje kulinarne">📝</button>
         <button id="btn-push" class="btn-icon" title="Włącz powiadomienia">🔔</button>
         <button id="btn-logout" class="btn-icon" title="Wyloguj">⎋</button>
       </div>
@@ -160,6 +161,21 @@
       </div>
       <p class="hint">Przekaż ten kod partnerowi/partnerce — wpisze go przy logowaniu, żeby dołączyć do tej samej lodówki.</p>
       <p id="invite-code-display" class="invite-code"></p>
+    </div>
+  </div>
+
+  <!-- Modal: preferencje kulinarne -->
+  <div id="modal-preferences" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Preferencje kulinarne</h2>
+        <button class="btn-icon modal-close" data-close="modal-preferences">✕</button>
+      </div>
+      <p class="hint">Co lubicie, czego nie lubicie, diety, alergie — AI uwzględni to przy podpowiedziach przepisów i planu tygodnia.</p>
+      <form id="form-preferences">
+        <textarea id="input-preferences" rows="6" placeholder="np. Lubimy kuchnię włoską i ostre jedzenie. Nie lubimy ryb i brokułów. Bez laktozy."></textarea>
+        <button type="submit" class="btn btn-primary">Zapisz</button>
+      </form>
     </div>
   </div>
 

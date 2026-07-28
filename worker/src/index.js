@@ -36,6 +36,12 @@ function extractJson(text) {
   return JSON.parse(fenced ? fenced[1] : trimmed);
 }
 
+function preferencesNote(preferences) {
+  const trimmed = typeof preferences === "string" ? preferences.trim() : "";
+  if (!trimmed) return "";
+  return `\n\nPreferencje kulinarne domowników (uwzględnij koniecznie — unikaj nielubianych składników i diet, faworyzuj lubiane):\n${trimmed}`;
+}
+
 function corsHeaders(env) {
   return {
     "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
@@ -143,7 +149,9 @@ async function handleRecipes(request, env) {
       {
         type: "text",
         text:
-          `Poniższe produkty w lodówce kończą się w ciągu najbliższych dni:\n${productList}\n\nZaproponuj 2-3 przepisy, które wykorzystują jak najwięcej z tych produktów. Dla każdego przepisu podaj tytuł, listę wykorzystanych produktów z powyższej listy (uses_products) oraz krótki, konkretny przepis krok po kroku (instructions) po polsku.\n\nFormat odpowiedzi:\n${RECIPE_FORMAT}` +
+          `Poniższe produkty w lodówce kończą się w ciągu najbliższych dni:\n${productList}\n\nZaproponuj 2-3 przepisy, które wykorzystują jak najwięcej z tych produktów. Dla każdego przepisu podaj tytuł, listę wykorzystanych produktów z powyższej listy (uses_products) oraz krótki, konkretny przepis krok po kroku (instructions) po polsku.` +
+          preferencesNote(body.preferences) +
+          `\n\nFormat odpowiedzi:\n${RECIPE_FORMAT}` +
           JSON_ONLY_INSTRUCTION,
       },
     ],
@@ -175,7 +183,9 @@ async function handleWeekPlan(request, env) {
       {
         type: "text",
         text:
-          `Oto wszystkie produkty aktualnie w lodówce:\n${productList}\n\nUłóż plan obiadów na 7 dni (poniedziałek-niedziela), maksymalnie wykorzystując te produkty. Produkty oznaczone [KOŃCZY SIĘ WKRÓTCE] potraktuj priorytetowo — zaplanuj dania z ich użyciem na najbliższe dni tygodnia. Możesz zakładać dostępność podstawowych składników spożywczych (sól, przyprawy, olej, mąka, ryż, makaron) nawet jeśli nie są na liście. Dla każdego dnia podaj: dzień tygodnia (day), tytuł dania (title), użyte produkty z listy (uses_products), krótki konkretny przepis krok po kroku (instructions) po polsku. Jeśli produktów z lodówki nie starczy na cały tydzień, w polu shopping_suggestions podaj krótką listę (może być pusta) dodatkowych podstawowych składników wartych dokupienia — inaczej zwróć pustą listę.\n\nFormat odpowiedzi:\n${WEEK_PLAN_FORMAT}` +
+          `Oto wszystkie produkty aktualnie w lodówce:\n${productList}\n\nUłóż plan obiadów na 7 dni (poniedziałek-niedziela), maksymalnie wykorzystując te produkty. Produkty oznaczone [KOŃCZY SIĘ WKRÓTCE] potraktuj priorytetowo — zaplanuj dania z ich użyciem na najbliższe dni tygodnia. Możesz zakładać dostępność podstawowych składników spożywczych (sól, przyprawy, olej, mąka, ryż, makaron) nawet jeśli nie są na liście. Dla każdego dnia podaj: dzień tygodnia (day), tytuł dania (title), użyte produkty z listy (uses_products), krótki konkretny przepis krok po kroku (instructions) po polsku. Jeśli produktów z lodówki nie starczy na cały tydzień, w polu shopping_suggestions podaj krótką listę (może być pusta) dodatkowych podstawowych składników wartych dokupienia — inaczej zwróć pustą listę.` +
+          preferencesNote(body.preferences) +
+          `\n\nFormat odpowiedzi:\n${WEEK_PLAN_FORMAT}` +
           JSON_ONLY_INSTRUCTION,
       },
     ],

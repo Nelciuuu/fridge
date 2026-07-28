@@ -33,7 +33,7 @@ button {
   cursor: pointer;
 }
 
-input, select {
+input, select, textarea {
   font-family: inherit;
   font-size: 16px; /* prevents iOS zoom-on-focus */
 }
@@ -77,12 +77,13 @@ form label {
   color: var(--text-muted);
 }
 
-input, select {
+input, select, textarea {
   padding: 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: #fff;
   color: var(--text);
+  font-family: inherit;
 }
 
 .btn {

@@ -3,5 +3,7 @@ preview-local.html
 node_modules/
 .wrangler/
 worker/.dev.vars
+key.txt
+worker/key.txt
 *.log
 .DS_Store

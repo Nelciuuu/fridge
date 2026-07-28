@@ -58,6 +58,7 @@ const state = {
   user: null,
   householdId: null,
   inviteCode: null,
+  foodPreferences: "",
   products: [],
   channel: null,
   receiptItems: [],
@@ -249,14 +250,36 @@ $("btn-invite").addEventListener("click", () => {
   openModal("modal-invite");
 });
 
-async function loadHouseholdInviteCode() {
+async function loadHouseholdDetails() {
   const { data } = await supabase
     .from("households")
-    .select("invite_code")
+    .select("invite_code, food_preferences")
     .eq("id", state.householdId)
     .single();
   state.inviteCode = data?.invite_code || null;
+  state.foodPreferences = data?.food_preferences || "";
 }
+
+$("btn-preferences").addEventListener("click", () => {
+  $("input-preferences").value = state.foodPreferences || "";
+  openModal("modal-preferences");
+});
+
+$("form-preferences").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const value = $("input-preferences").value.trim();
+  const { error } = await supabase
+    .from("households")
+    .update({ food_preferences: value })
+    .eq("id", state.householdId);
+  if (error) {
+    toast(`Błąd: ${error.message}`);
+    return;
+  }
+  state.foodPreferences = value;
+  closeModal("modal-preferences");
+  toast("Zapisano preferencje");
+});
 
 // ---------------------------------------------------------------------------
 // Produkty — pobieranie, renderowanie, CRUD, realtime
@@ -397,7 +420,7 @@ function subscribeRealtime() {
 
 async function enterApp() {
   showScreen("screen-app");
-  await loadHouseholdInviteCode();
+  await loadHouseholdDetails();
   await fetchProducts();
   subscribeRealtime();
 }
@@ -635,6 +658,7 @@ $("btn-cook-generate").addEventListener("click", async () => {
       },
       body: JSON.stringify({
         products: soon.map((p) => ({ name: p.name, quantity: p.quantity, expiry_date: p.expiry_date })),
+        preferences: state.foodPreferences || "",
       }),
     });
     const data = await res.json();
@@ -674,6 +698,7 @@ $("btn-cook-week").addEventListener("click", async () => {
           expiry_date: p.expiry_date,
           expiring_soon: daysUntil(p.expiry_date) <= 3,
         })),
+        preferences: state.foodPreferences || "",
       }),
     });
     const data = await res.json();
