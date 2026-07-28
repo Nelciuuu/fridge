@@ -1,10 +1,9 @@
-const CACHE_VERSION = "lodowka-v1";
+const CACHE_VERSION = "lodowka-v2";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
-  "./config.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -31,6 +30,13 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // let Supabase/Worker calls pass through untouched
+
+  // config.js changes with every deploy (SUPABASE_URL, AI_ENABLED, ...) — never
+  // serve a cached copy, always go to the network.
+  if (url.pathname.endsWith("config.js")) {
+    event.respondWith(fetch(req));
+    return;
+  }
 
   event.respondWith(
     caches.match(req).then((cached) => {
